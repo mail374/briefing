@@ -140,16 +140,25 @@
     catch(e){ return { html:null }; }
   }
 
-  // ---------- Keep the stage exactly the size of the visible screen ----------
-  // visualViewport is the most reliable source on iOS; falls back to innerHeight.
+  // ---------- Force the stage AND the iframe to an exact pixel height ----------
+  // iOS often ignores height:100% on an <iframe> (replaced element), which leaves
+  // a strip at the bottom. So we set an explicit px height on both, using the
+  // largest height the browser reports (avoids under-sizing on first paint).
   function fitStage(){
-    var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    var h = Math.max(
+      window.innerHeight || 0,
+      (document.documentElement && document.documentElement.clientHeight) || 0,
+      (window.visualViewport && window.visualViewport.height) || 0
+    );
     h = Math.round(h);
+    if(!h){ return; }
     stage.style.height   = h + "px";
+    viewer.style.height  = h + "px";   // explicit px height on the iframe itself
     welcome.style.height = h + "px";
   }
   window.addEventListener("resize", fitStage);
-  window.addEventListener("orientationchange", function(){ setTimeout(fitStage, 150); });
+  window.addEventListener("orientationchange", function(){ setTimeout(fitStage, 200); });
+  window.addEventListener("load", function(){ fitStage(); setTimeout(fitStage, 300); });
   if(window.visualViewport){
     window.visualViewport.addEventListener("resize", fitStage);
     window.visualViewport.addEventListener("scroll", fitStage);
@@ -188,6 +197,7 @@
 
   // ---------- Pull gesture inside the iframe ----------
   function attachGesture(){
+    fitStage(); // re-measure once the embedded page has loaded
     var doc, win;
     try{ doc = viewer.contentDocument; win = viewer.contentWindow; }
     catch(e){ doc = null; }
